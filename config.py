@@ -2,14 +2,21 @@ import os
 import google.generativeai as genai
 from dotenv import load_dotenv
 
-# Загружаем переменные окружения
+# Загружаем переменные из .env если есть
 load_dotenv()
 
-# Проверяем наличие необходимых переменных окружения
-required_env_vars = ["GEMINI_API_KEY", "NEO4J_URI", "NEO4J_USER", "NEO4J_PASSWORD"]
-missing_vars = [var for var in required_env_vars if not os.getenv(var)]
-if missing_vars:
-    raise ValueError(f"Отсутствуют необходимые переменные окружения: {', '.join(missing_vars)}")
+# Пробуем получить из разных источников
+def get_env_var(var_name: str) -> str:
+    # Сначала из .env или переменных окружения
+    value = os.getenv(var_name)
+    if value:
+        return value
+    # Затем из Streamlit secrets если доступно
+    try:
+        import streamlit as st
+        return st.secrets[var_name]
+    except:
+        return ""
 
 # Конфигурация Gemini
 GENERATION_CONFIG = {
@@ -20,23 +27,18 @@ GENERATION_CONFIG = {
     "response_mime_type": "text/plain",
 }
 
-# Neo4j конфигурация
-NEO4J_URI = os.getenv("NEO4J_URI")
-NEO4J_USER = os.getenv("NEO4J_USER")
-NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD")
+# Получаем переменные
+GEMINI_API_KEY = get_env_var("GEMINI_API_KEY")
+NEO4J_URI = get_env_var("NEO4J_URI")
+NEO4J_USER = get_env_var("NEO4J_USER")
+NEO4J_PASSWORD = get_env_var("NEO4J_PASSWORD")
 
 # Инициализация Gemini
-try:
-    genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-except Exception as e:
-    raise Exception(f"Ошибка конфигурации Gemini API: {str(e)}")
+genai.configure(api_key=GEMINI_API_KEY)
 
 def get_gemini_model():
-    try:
-        return genai.GenerativeModel(
-            model_name="gemini-1.5-flash-002",
-            generation_config=GENERATION_CONFIG,
-            system_instruction="ассистент"
-        )
-    except Exception as e:
-        raise Exception(f"Ошибка создания модели Gemini: {str(e)}")
+    return genai.GenerativeModel(
+        model_name="gemini-1.5-flash-002",
+        generation_config=GENERATION_CONFIG,
+        system_instruction="ассистент"
+    )
